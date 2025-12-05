@@ -23,7 +23,6 @@
       padding: 24px;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
       align-items: stretch;
     }
 
@@ -33,6 +32,7 @@
       text-transform: uppercase;
       margin-bottom: 8px;
       font-family: "SF Mono", Menlo, Consolas, monospace;
+      text-align: center;              /* centered title */
     }
 
     .frame {
@@ -42,20 +42,21 @@
       box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
       overflow: hidden;
       display: flex;
-      align-items: stretch;
-      justify-content: stretch;
+      align-items: center;
+      justify-content: center;
     }
 
     canvas {
       display: block;
-      width: 100%;
-      height: 100%;
+      /* fixed logical size; will scale to fit frame */
+      width: 800px;
+      height: 400px;
     }
   </style>
 </head>
 <body>
   <div class="wrapper">
-    <div class="title">Conway's Game of Life</div>
+    <div class="title">CONWAY'S GAME OF LIFE</div>
     <div class="frame">
       <canvas id="life"></canvas>
     </div>
@@ -63,10 +64,13 @@
 
   <script>
     // --- CONFIG ---
-    const CELL_SIZE = 6;        // tweak for chunkiness
-    const STEP_INTERVAL = 100;  // ms
-    const LIVE_COLORS = ["#000000", "#555555", "#999999"]; // simple grayscale palette
+    const CELL_SIZE = 5;        // tweak for chunkiness
+    const STEP_INTERVAL = 120;  // ms between generations
+    const LIVE_COLORS = ["#000000", "#555555", "#999999"];
     const DEAD_COLOR = "#ffffff";
+
+    const WIDTH = 800;
+    const HEIGHT = 400;
 
     function getTodaySeed() {
       const now = new Date();
@@ -85,84 +89,60 @@
       };
     }
 
-    class GameOfLife {
-      constructor(canvas) {
-        this.canvas = canvas;
-        this.ctx = canvas.getContext("2d");
-        this.last = 0;
+    (function startGame() {
+      const canvas = document.getElementById("life");
+      if (!canvas) return;
 
-        this.initCanvas();
-        this.initGrid();
+      const ctx = canvas.getContext("2d");
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
 
-        // If SenseCraft resizes the iframe, this still adapts
-        window.addEventListener("resize", () => {
-          this.initCanvas();
-          this.initGrid();
-        });
+      const cols = Math.floor(WIDTH / CELL_SIZE);
+      const rows = Math.floor(HEIGHT / CELL_SIZE);
 
-        requestAnimationFrame((t) => this.loop(t));
-      }
+      // seed grid based on today's date
+      const seed = getTodaySeed();
+      const rand = mulberry32(seed);
 
-      initCanvas() {
-        const rect = this.canvas.getBoundingClientRect();
-        // fallback if rect height is 0 (some environments)
-        const width = rect.width || 800;
-        const height = rect.height || 400;
+      let grid = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => (rand() < 0.25 ? 1 : 0))
+      );
 
-        this.canvas.width = width;
-        this.canvas.height = height;
-
-        this.cols = Math.floor(width / CELL_SIZE);
-        this.rows = Math.floor(height / CELL_SIZE);
-
-        this.ctx.imageSmoothingEnabled = false;
-      }
-
-      initGrid() {
-        const seed = getTodaySeed();
-        const rand = mulberry32(seed);
-        this.grid = Array.from({ length: this.rows }, () =>
-          Array.from({ length: this.cols }, () => (rand() < 0.25 ? 1 : 0))
-        );
-      }
-
-      neighbors(x, y) {
+      function neighbors(x, y) {
         let n = 0;
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
             if (dx === 0 && dy === 0) continue;
             const xx = x + dx, yy = y + dy;
-            if (xx >= 0 && xx < this.cols && yy >= 0 && yy < this.rows) {
-              n += this.grid[yy][xx];
+            if (xx >= 0 && xx < cols && yy >= 0 && yy < rows) {
+              n += grid[yy][xx];
             }
           }
         }
         return n;
       }
 
-      step() {
+      function step() {
         const next = [];
-        for (let y = 0; y < this.rows; y++) {
+        for (let y = 0; y < rows; y++) {
           next[y] = [];
-          for (let x = 0; x < this.cols; x++) {
-            const alive = this.grid[y][x];
-            const n = this.neighbors(x, y);
+          for (let x = 0; x < cols; x++) {
+            const alive = grid[y][x];
+            const n = neighbors(x, y);
             next[y][x] = alive ? (n === 2 || n === 3) : (n === 3);
           }
         }
-        this.grid = next;
+        grid = next;
       }
 
-      draw() {
-        const ctx = this.ctx;
+      function draw() {
         ctx.fillStyle = DEAD_COLOR;
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-        for (let y = 0; y < this.rows; y++) {
-          for (let x = 0; x < this.cols; x++) {
-            if (this.grid[y][x]) {
-              // pick a grayscale tone for a little texture
-              const colorIndex = this.grid[y][x] % LIVE_COLORS.length;
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            if (grid[y][x]) {
+              const colorIndex = grid[y][x] % LIVE_COLORS.length;
               ctx.fillStyle = LIVE_COLORS[colorIndex];
               ctx.fillRect(
                 x * CELL_SIZE,
@@ -175,22 +155,15 @@
         }
       }
 
-      loop(ts) {
-        if (!this.last) this.last = ts;
-        if (ts - this.last >= STEP_INTERVAL) {
-          this.step();
-          this.draw();
-          this.last = ts;
-        }
-        requestAnimationFrame((t) => this.loop(t));
-      }
-    }
+      // initial draw
+      draw();
 
-    // --- START IMMEDIATELY (no DOMContentLoaded) ---
-    const canvas = document.getElementById("life");
-    if (canvas) {
-      new GameOfLife(canvas);
-    }
+      // evolve over time
+      setInterval(() => {
+        step();
+        draw();
+      }, STEP_INTERVAL);
+    })();
   </script>
 </body>
 </html>
