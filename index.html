@@ -32,7 +32,7 @@
       text-transform: uppercase;
       margin-bottom: 8px;
       font-family: "SF Mono", Menlo, Consolas, monospace;
-      text-align: center;              /* centered title */
+      text-align: center;
     }
 
     .frame {
@@ -48,7 +48,6 @@
 
     canvas {
       display: block;
-      /* fixed logical size; will scale to fit frame */
       width: 800px;
       height: 400px;
     }
@@ -64,8 +63,8 @@
 
   <script>
     // --- CONFIG ---
-    const CELL_SIZE = 5;        // tweak for chunkiness
-    const STEP_INTERVAL = 120;  // ms between generations
+    const CELL_SIZE = 10;       // LARGER CELLS
+    const STEP_INTERVAL = 120;  // ms
     const LIVE_COLORS = ["#000000", "#555555", "#999999"];
     const DEAD_COLOR = "#ffffff";
 
@@ -154,6 +153,10 @@
           }
         }
       }
+
+      // --- NEW FEATURE: RANDOM JUMP AHEAD ---
+      const jumpGenerations = Math.floor(rand() * 300) + 100; // 100–400 skips
+      for (let i = 0; i < jumpGenerations; i++) step();
 
       // initial draw
       draw();
