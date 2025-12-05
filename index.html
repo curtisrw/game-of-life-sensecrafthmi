@@ -61,112 +61,112 @@
     </div>
   </div>
 
- <script>
-  // --- CONFIG ---
-  const CELL_SIZE = 10;       // LARGER CELLS
-  const STEP_INTERVAL = 120;  // ms
-  const LIVE_COLORS = ["#000000", "#555555", "#999999"];
-  const DEAD_COLOR = "#ffffff";
+  <script>
+    // --- CONFIG ---
+    const CELL_SIZE = 10;       // LARGER CELLS
+    const STEP_INTERVAL = 120;  // ms
+    const LIVE_COLORS = ["#000000", "#555555", "#999999"];
+    const DEAD_COLOR = "#ffffff";
 
-  const WIDTH = 800;
-  const HEIGHT = 400;
+    const WIDTH = 800;
+    const HEIGHT = 400;
 
-  function getTodaySeed() {
-    const now = new Date();
-    return now.getFullYear() * 10000 +
-           (now.getMonth() + 1) * 100 +
-           now.getDate();
-  }
+    function getTodaySeed() {
+      const now = new Date();
+      return now.getFullYear() * 10000 +
+             (now.getMonth() + 1) * 100 +
+             now.getDate();
+    }
 
-  // Mulberry32 PRNG (deterministic)
-  function mulberry32(a) {
-    return function () {
-      let t = a += 0x6D2B79F5;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
+    // Mulberry32 PRNG
+    function mulberry32(a) {
+      return function () {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
 
-  (function startGame() {
-    const canvas = document.getElementById("life");
-    if (!canvas) return;
+    (function startGame() {
+      const canvas = document.getElementById("life");
+      if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    canvas.width = WIDTH;
-    canvas.height = HEIGHT;
+      const ctx = canvas.getContext("2d");
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
 
-    const cols = Math.floor(WIDTH / CELL_SIZE);
-    const rows = Math.floor(HEIGHT / CELL_SIZE);
+      const cols = Math.floor(WIDTH / CELL_SIZE);
+      const rows = Math.floor(HEIGHT / CELL_SIZE);
 
-    // seed grid based on today's date (same base pattern for the day)
-    const seed = getTodaySeed();
-    const rand = mulberry32(seed);
+      // seed grid based on today's date
+      const seed = getTodaySeed();
+      const rand = mulberry32(seed);
 
-    let grid = Array.from({ length: rows }, () =>
-      Array.from({ length: cols }, () => (rand() < 0.25 ? 1 : 0))
-    );
+      let grid = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => (rand() < 0.25 ? 1 : 0))
+      );
 
-    function neighbors(x, y) {
-      let n = 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (dx === 0 && dy === 0) continue;
-          const xx = x + dx, yy = y + dy;
-          if (xx >= 0 && xx < cols && yy >= 0 && yy < rows) {
-            n += grid[yy][xx];
+      function neighbors(x, y) {
+        let n = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const xx = x + dx, yy = y + dy;
+            if (xx >= 0 && xx < cols && yy >= 0 && yy < rows) {
+              n += grid[yy][xx];
+            }
           }
         }
         return n;
       }
-    }
 
-    function step() {
-      const next = [];
-      for (let y = 0; y < rows; y++) {
-        next[y] = [];
-        for (let x = 0; x < cols; x++) {
-          const alive = grid[y][x];
-          const n = neighbors(x, y);
-          next[y][x] = alive ? (n === 2 || n === 3) : (n === 3);
+      function step() {
+        const next = [];
+        for (let y = 0; y < rows; y++) {
+          next[y] = [];
+          for (let x = 0; x < cols; x++) {
+            const alive = grid[y][x];
+            const n = neighbors(x, y);
+            next[y][x] = alive ? (n === 2 || n === 3) : (n === 3);
+          }
         }
+        grid = next;
       }
-      grid = next;
-    }
 
-    function draw() {
-      ctx.fillStyle = DEAD_COLOR;
-      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      function draw() {
+        ctx.fillStyle = DEAD_COLOR;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          if (grid[y][x]) {
-            const colorIndex = grid[y][x] % LIVE_COLORS.length;
-            ctx.fillStyle = LIVE_COLORS[colorIndex];
-            ctx.fillRect(
-              x * CELL_SIZE,
-              y * CELL_SIZE,
-              CELL_SIZE,
-              CELL_SIZE
-            );
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            if (grid[y][x]) {
+              const colorIndex = grid[y][x] % LIVE_COLORS.length;
+              ctx.fillStyle = LIVE_COLORS[colorIndex];
+              ctx.fillRect(
+                x * CELL_SIZE,
+                y * CELL_SIZE,
+                CELL_SIZE,
+                CELL_SIZE
+              );
+            }
           }
         }
       }
-    }
 
-    // --- RANDOM JUMP AHEAD (non-deterministic per refresh) ---
-    const jumpGenerations = 100 + Math.floor(Math.random() * 300); // 100–399
-    for (let i = 0; i < jumpGenerations; i++) step();
+      // --- NEW FEATURE: RANDOM JUMP AHEAD ---
+      const jumpGenerations = Math.floor(rand() * 300) + 100; // 100–400 skips
+      for (let i = 0; i < jumpGenerations; i++) step();
 
-    // initial draw
-    draw();
-
-    // evolve over time
-    setInterval(() => {
-      step();
+      // initial draw
       draw();
-    }, STEP_INTERVAL);
-  })();
-</script>
+
+      // evolve over time
+      setInterval(() => {
+        step();
+        draw();
+      }, STEP_INTERVAL);
+    })();
+  </script>
 </body>
 </html>
